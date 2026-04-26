@@ -254,12 +254,12 @@
             const minSwipeDistance = 50; // סף רגישות להחלקה
 
             if (swipeDistance < -minSwipeDistance) {
-                // החלקה שמאלה = קדימה בספר עברי
-                showNextPage();
+                // החלקה שמאלה תעביר לעמוד הקודם
+                showPrevPage();
             }
             if (swipeDistance > minSwipeDistance) {
-                // החלקה ימינה = אחורה בספר עברי
-                showPrevPage();
+                // החלקה ימינה תעביר לעמוד הבא
+                showNextPage();
             }
         }
         
