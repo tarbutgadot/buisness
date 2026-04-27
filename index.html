@@ -9,8 +9,8 @@
     <style>
         body {
             background-color: #f3f4f6;
-            touch-action: pan-y; /* מאפשר גלילה אנכית רגילה אבל תופס החלקות אופקיות */
-            overflow: hidden; /* מונע גלילה מיותרת של כל הדף */
+            touch-action: pan-y;
+            overflow: hidden;
         }
         
         #page-wrapper {
@@ -55,36 +55,30 @@
 </head>
 <body class="flex flex-col h-screen font-sans text-gray-800">
 
-    <!-- אזור הצגת העמוד -->
     <main class="flex-grow flex items-center justify-center p-2 relative w-full h-full overflow-hidden" id="canvas-container">
-        <!-- אינדיקטור טעינה -->
         <div id="loading-bar" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 z-10">
             <div class="loader mb-4"></div>
             <p id="loading-text" class="text-gray-600 font-medium">טוען את המסמך...</p>
         </div>
         
-        <!-- הודעת שגיאה במקרה של בעיית CORS או קובץ חסר -->
         <div id="error-message" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-gray-50 z-20 p-6 text-center">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-red-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
-            <h2 class="text-xl font-bold mb-2">לא הצלחנו לטעון את הקובץ ישירות</h2>
-            <p class="text-gray-600 mb-6">ייתכן שהדפדפן חוסם את הגישה (שגיאת הרשאות מדרופבוקס).</p>
-            <a href="https://www.dropbox.com/scl/fi/03xukiezeoeu6dsjioyfw/5.2026.pdf?rlkey=7zoyok447f9eors5m2o6oepqx&st=8d7gyf72&dl=0" target="_blank" class="px-6 py-3 bg-blue-600 text-white rounded-lg shadow font-medium hover:bg-blue-700">
+            <h2 class="text-xl font-bold mb-2">לא הצלחנו לטעון את הקובץ</h2>
+            <p class="text-gray-600 mb-6">קרתה שגיאה בתקשורת מול השרת.</p>
+            <a href="https://www.dropbox.com/scl/fi/03xukiezeoeu6dsjioyfw/5.2026.pdf?rlkey=7zoyok447f9eors5m2o6oepqx&dl=0" target="_blank" class="px-6 py-3 bg-blue-600 text-white rounded-lg shadow font-medium hover:bg-blue-700">
                 פתח את הקובץ בכרטיסייה חדשה
             </a>
         </div>
 
-        <!-- עטיפה חדשה שמכילה גם את הקובץ וגם את שכבת הקישורים -->
         <div id="page-wrapper" class="bg-white rounded">
             <canvas id="pdf-render"></canvas>
             <div id="annotation-layer" class="absolute top-0 left-0 w-full h-full pointer-events-none"></div>
         </div>
     </main>
 
-    <!-- סרגל ניווט תחתון -->
     <footer class="bg-white border-t border-gray-200 p-4 flex justify-between items-center z-30">
-        <!-- הבא (חץ שמאלה - כי קוראים מימין לשמאל) -->
         <button id="next-page" class="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-100 transition-colors font-medium">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" />
@@ -96,7 +90,6 @@
             עמוד <span id="page-num">0</span> מתוך <span id="page-count">0</span>
         </span>
 
-        <!-- הקודם (חץ ימינה) -->
         <button id="prev-page" class="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-100 transition-colors font-medium">
             הקודם
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -106,26 +99,23 @@
     </footer>
 
     <script>
-        // המרת הקישור לפורמט ישיר שיאפשר קריאה לדפדפן בלי דף ביניים של דרופבוקס
-        const url = 'https://dl.dropboxusercontent.com/scl/fi/03xukiezeoeu6dsjioyfw/5.2026.pdf?rlkey=7zoyok447f9eors5m2o6oepqx&st=8d7gyf72';
+        const originalUrl = 'https://dl.dropboxusercontent.com/scl/fi/03xukiezeoeu6dsjioyfw/5.2026.pdf?rlkey=7zoyok447f9eors5m2o6oepqx';
         
         let pdfDoc = null,
             pageNum = 1,
             pageIsRendering = false,
             pageNumIsPending = null;
 
-        const scale = 1.5, // רזולוציית הרינדור (גבוה יותר = חד יותר)
+        const scale = 1.5,
               canvas = document.querySelector('#pdf-render'),
               ctx = canvas.getContext('2d'),
               container = document.querySelector('#canvas-container');
 
-        // מגדיר מאיפה PDF.js שואב את קובץ העזר שלו
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
-        // פונקציה לרינדור העמוד הספציפי
         const renderPage = num => {
             pageIsRendering = true;
-            document.querySelector('#page-wrapper').style.opacity = 0.5; // אפקט מעבר עדין על כל העטיפה
+            document.querySelector('#page-wrapper').style.opacity = 0.5;
 
             pdfDoc.getPage(num).then(page => {
                 const viewport = page.getViewport({ scale });
@@ -147,7 +137,6 @@
                     }
                 });
 
-                // פריסת הקישורים (אנוטציות) הפנימיים מעל העמוד
                 const annotationLayer = document.querySelector('#annotation-layer');
                 annotationLayer.innerHTML = ''; 
 
@@ -163,13 +152,11 @@
                             const linkDiv = document.createElement('div');
                             linkDiv.className = 'pdf-link';
                             
-                            // שימוש באחוזים כדי שהקישורים יישארו במקום גם אם המסך משנה גודל
                             linkDiv.style.left = (minX / viewport.width * 100) + '%';
                             linkDiv.style.top = (minY / viewport.height * 100) + '%';
                             linkDiv.style.width = ((maxX - minX) / viewport.width * 100) + '%';
                             linkDiv.style.height = ((maxY - minY) / viewport.height * 100) + '%';
 
-                            // ניתוב הקישור לתוך הקובץ או החוצה
                             if (anno.dest) {
                                 linkDiv.addEventListener('click', () => {
                                     let destPromise = typeof anno.dest === 'string' ? pdfDoc.getDestination(anno.dest) : Promise.resolve(anno.dest);
@@ -194,7 +181,6 @@
 
                 document.querySelector('#page-num').textContent = num;
                 
-                // עדכון מצב הכפתורים
                 document.querySelector('#prev-page').disabled = (num <= 1);
                 document.querySelector('#next-page').disabled = (num >= pdfDoc.numPages);
             });
@@ -220,23 +206,42 @@
             queueRenderPage(pageNum);
         };
 
-        // טעינת המסמך מהרשת
-        pdfjsLib.getDocument(url).promise.then(pdfDoc_ => {
-            pdfDoc = pdfDoc_;
-            document.querySelector('#page-count').textContent = pdfDoc.numPages;
-            document.querySelector('#loading-bar').style.display = 'none';
-            renderPage(pageNum);
-        }).catch(err => {
-            console.error('Error loading PDF: ', err);
+        // פונקציה חכמה לטעינת הקובץ עם נסיונות גיבוי מול חסימות
+        async function loadPdf() {
+            const urlsToTry = [
+                originalUrl, // קודם מנסים ישירות
+                'https://api.allorigins.win/raw?url=' + encodeURIComponent(originalUrl),
+                'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(originalUrl)
+            ];
+
+            for (let i = 0; i < urlsToTry.length; i++) {
+                try {
+                    const loadingTask = pdfjsLib.getDocument({
+                        url: urlsToTry[i],
+                        disableRange: true,   // קריטי למניעת שגיאות 403 בשימוש עם פרוקסי
+                        disableStream: true
+                    });
+                    pdfDoc = await loadingTask.promise;
+                    
+                    document.querySelector('#page-count').textContent = pdfDoc.numPages;
+                    document.querySelector('#loading-bar').style.display = 'none';
+                    renderPage(pageNum);
+                    return; // יציאה מהלולאה במקרה של הצלחה
+                } catch (err) {
+                    console.warn('Failed to load from', urlsToTry[i], err);
+                }
+            }
+            
+            // אם כל הנסיונות נכשלו
             document.querySelector('#loading-bar').style.display = 'none';
             document.querySelector('#error-message').classList.remove('hidden');
-        });
+        }
 
-        // אירועי לחיצה לכפתורים
+        loadPdf();
+
         document.querySelector('#prev-page').addEventListener('click', showPrevPage);
         document.querySelector('#next-page').addEventListener('click', showNextPage);
 
-        // תמיכה בהחלקת אצבע (Swipe) לניידים - כיוונים הפוכים לעברית
         let touchstartX = 0;
         let touchendX = 0;
 
@@ -251,19 +256,16 @@
 
         function handleSwipe() {
             const swipeDistance = touchendX - touchstartX;
-            const minSwipeDistance = 50; // סף רגישות להחלקה
+            const minSwipeDistance = 50;
 
             if (swipeDistance < -minSwipeDistance) {
-                // החלקה שמאלה תעביר לעמוד הקודם
-                showPrevPage();
+                showNextPage(); // החלקה שמאלה - עמוד הבא
             }
             if (swipeDistance > minSwipeDistance) {
-                // החלקה ימינה תעביר לעמוד הבא
-                showNextPage();
+                showPrevPage(); // החלקה ימינה - עמוד קודם
             }
         }
         
-        // התאמה מחדש בעת סיבוב המסך
         window.addEventListener('resize', () => {
             if(pdfDoc) {
                queueRenderPage(pageNum); 
