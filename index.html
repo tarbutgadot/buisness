@@ -209,24 +209,27 @@
         // פונקציה חכמה לטעינת הקובץ עם נסיונות גיבוי מול חסימות
         async function loadPdf() {
             const urlsToTry = [
-                originalUrl, // קודם מנסים ישירות
-                'https://api.allorigins.win/raw?url=' + encodeURIComponent(originalUrl),
-                'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(originalUrl)
+                originalUrl, // קודם מנסים ישירות מדרופבוקס
+                'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(originalUrl) // שרת גיבוי שמתמודד מעולה עם קבצים
             ];
 
             for (let i = 0; i < urlsToTry.length; i++) {
                 try {
-                    const loadingTask = pdfjsLib.getDocument({
-                        url: urlsToTry[i],
-                        disableRange: true,   // קריטי למניעת שגיאות 403 בשימוש עם פרוקסי
-                        disableStream: true
-                    });
+                    // בניידים עדיף להוריד את הקובץ באופן מלא לזיכרון (כמערך של נתונים)
+                    // ואז להעביר אותו למנוע ה-PDF. זה עוקף את חסימות האבטחה (CORS).
+                    const response = await fetch(urlsToTry[i]);
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    
+                    const arrayBuffer = await response.arrayBuffer();
+                    const data = new Uint8Array(arrayBuffer);
+
+                    const loadingTask = pdfjsLib.getDocument({ data: data });
                     pdfDoc = await loadingTask.promise;
                     
                     document.querySelector('#page-count').textContent = pdfDoc.numPages;
                     document.querySelector('#loading-bar').style.display = 'none';
                     renderPage(pageNum);
-                    return; // יציאה מהלולאה במקרה של הצלחה
+                    return; // הצלחנו - יוצאים מהלולאה
                 } catch (err) {
                     console.warn('Failed to load from', urlsToTry[i], err);
                 }
